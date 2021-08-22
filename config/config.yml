@@ -1,0 +1,5 @@
+unsplit_data_root: '../data/unsplit_data/'
+split_data_root: '../data/split_data/'
+segmented_data_root: '../data/segmented_data/'
+full_spectrogram_data_root: '../data/spectrogram_data/whole_spectrograms/'
+segmented_spectrogram_data_root: '../data/spectrogram_data/segmented_spectrograms/'
