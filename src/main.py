@@ -2,12 +2,14 @@ import yaml
 import os
 import sys
 import argparse
-from Preprocessing_Pipeline import Preprocessing_Pipeline
+from Preprocessing_Pipeline import Splitting_Pipeline
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p','--preprocess', required=False)
 parser.add_argument('-t','--train', required=False)
 parser.add_argument('-s','--score', required=False)
+parser.add_argument('-sp','--split', required=False)
+parser.add_argument('-bd','--builddataset', required=False)
 
 PreProc = False
 Train = False
@@ -29,6 +31,6 @@ if __name__ == '__main__':
     with open("config/config.yml", 'r') as stream:
         config = yaml.safe_load(stream)
     if PreProc:
-        Preproc_pipe = Preprocessing_Pipeline(config['PreProc'])
-        Preproc_pipe.run_pipeline()
+        Preproc_pipe = Splitting_Pipeline(config['PreProc'])
+        Preproc_pipe.run_pipeline(args.split,args.builddataset)
     pass

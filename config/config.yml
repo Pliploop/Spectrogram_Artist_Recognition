@@ -2,9 +2,11 @@
 PreProc:
   Splitting:
     unsplit_data_root: 'data/data/unsplit_data/'
-    split_data_vocal_root: 'data/data/split_data/vocals'
-    split_data_instrumental_root : 'data/data/split_data/instrumental'
+    split_data_root: 'data/data/split_data/'
     unsplit_dataset_path: 'data/data/unsplit_dataset.csv'
-segmented_data_root: 'data/data/segmented_data/'
-full_spectrogram_data_root: 'data/data/spectrogram_data/whole_spectrograms/'
-segmented_spectrogram_data_root: 'data/data/spectrogram_data/segmented_spectrograms/'
+    split_pool_path: 'data/data/split_pool/'
+  Spectrogram:
+    full_spectrogram_data_root: 'data/data/spectrogram_data/whole_spectrograms/'
+    segmented_spectrogram_data_root: 'data/data/spectrogram_data/segmented_spectrograms/'
+
+  segmented_data_root: 'data/data/segmented_data/'
