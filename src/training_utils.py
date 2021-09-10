@@ -1,13 +1,17 @@
 import torch
 import numpy as np
 import os.path as osp
-from audio_augmentations import AudioTransform,Compose,OneOf,GaussianNoiseSNR,PinkNoiseSNR,TimeShift,VolumeControl
-from spectrogram_utils import mono_to_color,normalize
+from src.audio_augmentations import AudioTransform,Compose,OneOf,GaussianNoiseSNR,PinkNoiseSNR,TimeShift,VolumeControl
+from src.spectrogram_utils import mono_to_color,normalize
 import torchaudio
+
+from torch.utils.data import Dataset
 import pandas as pd
 import librosa
 import albumentations as A
 import random
+import librosa.display
+import matplotlib.pyplot as plt
 
 def LWLRAP(preds, labels):
     # Ranks of the predictions
@@ -33,25 +37,16 @@ def LWLRAP(preds, labels):
     return score.item()
 
 
-class RFCDataset:
-    def __init__(self, tp, fp=None, config=None,
-                 mode='train', inv_counts=None):
+class RecoNetDataset(Dataset):
+    def __init__(self, tp, config=None):
         self.tp = tp
-        self.fp = pd.read_csv("../input/rfcxextras/cornell-train.csv")
-        self.fp = self.fp[self.fp.ebird_code<'c'].reset_index(drop=True)
-        self.fp_root = "../input/birdsong-resampled-train-audio-00/"        
-        self.inv_counts = inv_counts
         self.config = config
         self.sr = self.config.sr
-        self.total_duration = self.config.total_duration
-        self.duration = self.config.duration
         self.data_root = self.config.TRAIN_AUDIO_ROOT
         self.nmels = self.config.nmels
-        self.fmin, self.fmax = 84, self.sr//2
-        self.mode = mode
-        self.num_classes = self.config.num_classes
-        self.resampler = torchaudio.transforms.Resample(
-            orig_freq=48_000, new_freq=self.sr)
+        self.fmin, self.fmax = 40, 20000
+        self.num_classes = self.tp.artist.nunique()
+        self.classes = list(self.tp.artist.unique())
         self.mel = torchaudio.transforms.MelSpectrogram(sample_rate=self.sr, n_mels=self.nmels,
                                                         f_min=self.fmin, f_max=self.fmax,
                                                         n_fft=2048)
@@ -69,9 +64,6 @@ class RFCDataset:
                 A.CoarseDropout(max_holes=4),
                 A.RandomBrightness(p=0.25),
             ], p=0.5)])
-        self.num_splits = self.config.total_duration//self.duration
-        assert self.config.total_duration == self.duration * \
-            self.num_splits, "not a multiple"
 
     def __len__(self):
         return len(self.tp)
@@ -79,26 +71,16 @@ class RFCDataset:
     def __getitem__(self, idx):
         labels = np.zeros((self.num_classes,), dtype=np.float32) # Number of artists here
 
-        song_id = self.tp.loc[idx, 'song_id'] ## Get the song ID here
-        df = self.tp.loc[self.tp.song_id == song_id]
-        maybe_labels = df.artist.unique()
-        np.put(labels, maybe_labels, 0.2)
-
-        # df = df.sample(weights=df.species_id.apply(
-        #     lambda x: self.inv_counts[x]))
+        song_id = self.tp.loc[idx, 'uuid'] ## Get the song ID here
+        df = self.tp.loc[self.tp.uuid == song_id]
+        artist = df.artist.unique()[0]
+        print(artist)
+        labels[self.classes.index(artist)] = 1
+        print(labels)
         fn = osp.join(self.data_root, f"{song_id}.mp3") # This is the file name
-        # df = df.squeeze()
-        # t0 = max(df['t_min'], 0)
-        # t1 = max(df['t_max'], 0)
-        # t0 = np.random.uniform(t0, t1)
-        # t0 = max(t0, 0)
-        # t0 = min(t0, self.total_duration-self.duration)
-        # t1 = t0 + self.duration
-        # valid_df = self.tp[self.tp.recording_id == recording_id]
-        # valid_df = valid_df[(valid_df.t_min < t1) & (valid_df.t_max > t0)]
-        y, _ = librosa.load(fn, sr=None)
+        print(fn)
+        y, _ = librosa.load(fn, sr=self.sr)
 
-        y = self.resampler(torch.from_numpy(y).float()).numpy()
         y = self.transform(y)
         if random.random() < 0.25:
             tempo, beats = librosa.beat.beat_track(y=y, sr=self.sr)
@@ -107,7 +89,11 @@ class RFCDataset:
         melspec = librosa.feature.melspectrogram(
             y, sr=self.sr, n_mels=self.nmels, fmin=self.fmin, fmax=self.fmax,
         )
+        fig,ax=plt.subplots()
         melspec = librosa.power_to_db(melspec)
+        img = librosa.display.specshow(melspec, x_axis='time',
+                         y_axis='mel', sr=self.sr,ax=ax)
+        
         melspec = mono_to_color(melspec)
         melspec = normalize(melspec, mean=None, std=None)
         melspec = self.img_transform(image=melspec)['image']

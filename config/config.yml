@@ -5,8 +5,6 @@ PreProc:
     split_data_root: 'data/data/split_data/'
     unsplit_dataset_path: 'data/data/unsplit_dataset.csv'
     split_pool_path: 'data/data/split_pool/'
-  Spectrogram:
-    full_spectrogram_data_root: 'data/data/spectrogram_data/whole_spectrograms/'
-    segmented_spectrogram_data_root: 'data/data/spectrogram_data/segmented_spectrograms/'
-
-  segmented_data_root: 'data/data/segmented_data/'
+  Segmenting:
+    segmented_data_root: 'data/data/segmented_data/'
+    segment_length : 10
