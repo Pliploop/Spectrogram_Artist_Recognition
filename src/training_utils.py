@@ -129,6 +129,50 @@ class RecoNetDataset(Dataset):
         melspec = np.moveaxis(melspec, 2, 0)
         return melspec, labels
 
+class RecoNetTestDataset(Dataset):
+    def __init__(self, tp, config=None):
+        self.tp = tp
+        self.config = config
+        self.sr = self.config.sr
+        self.data_root = self.config.TRAIN_AUDIO_ROOT
+        self.nmels = self.config.nmels
+        self.fmin, self.fmax = 40, 20000
+        self.num_classes = self.tp.artist.nunique()
+        self.classes = list(self.tp.artist.unique())
+        self.mel = torchaudio.transforms.MelSpectrogram(sample_rate=self.sr, n_mels=self.nmels,
+                                                        f_min=self.fmin, f_max=self.fmax,
+                                                        n_fft=2048)
+
+    def __len__(self):
+        return len(self.tp)
+
+    def __getitem__(self, idx):
+        # Number of artists here
+        labels = np.zeros((self.num_classes,), dtype=np.float32)
+
+        song_id = self.tp.loc[idx, 'new_uuid']  # Get the song ID here
+        df = self.tp.loc[self.tp.new_uuid == song_id]
+        artist = df.artist.unique()[0]
+        # print(artist)
+        labels[self.classes.index(artist)] = 1
+        # print(labels)
+        # This is the file name
+        fn = osp.join(self.data_root, f"{song_id}.mp3")
+        # print(fn)
+        y, _ = librosa.load(fn, sr=self.sr)
+
+        melspec = librosa.feature.melspectrogram(
+            y, sr=self.sr, n_mels=self.nmels, fmin=self.fmin, fmax=self.fmax,
+        )
+        # fig, ax = plt.subplots()
+        melspec = librosa.power_to_db(melspec)
+        # img = librosa.display.specshow(melspec, x_axis='time',
+        #    y_axis='mel', sr=self.sr, ax=ax, cmap='viridis')
+
+        melspec = mono_to_color(melspec)
+        melspec = normalize(melspec, mean=None, std=None)
+        melspec = np.moveaxis(melspec, 2, 0)
+        return melspec, labels
 
 class RecoNetTrainer:
 
@@ -193,21 +237,15 @@ class RecoNetTrainer:
 
         return [optim], [scheduler]
 
-    def generate_dataloaders(self, dataset):
-        train_indices, val_indices, _, _ = train_test_split(
-            range(len(dataset)),
-            range(len(dataset)),
-            test_size=0.2)
+    def generate_dataloaders(self, train_dataset,val_dataset):
+        test_indices, val_indices, _, _ = train_test_split(
+            range(len(val_dataset)),
+            range(len(val_dataset)),
+            test_size=0.5)
 
-        train_split = Subset(dataset, train_indices)
-        val_split = Subset(dataset, val_indices)
-
-        train_indices, test_indices, _, _ = train_test_split(
-            range(len(train_split)),
-            range(len(train_split)), test_size=0.25)
-
-        test_split = Subset(train_split, test_indices)
-        train_split = Subset(train_split, train_indices)
+        test_split   = Subset(val_dataset, test_indices)
+        val_split = Subset(val_dataset, val_indices)
+        train_split = train_dataset
 
         self.train_batches = DataLoader(
             train_split, batch_size=self.batch_size, shuffle=True)
