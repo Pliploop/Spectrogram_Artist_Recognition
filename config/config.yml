@@ -6,5 +6,5 @@ PreProc:
     unsplit_dataset_path: 'data/data/unsplit_dataset.csv'
     split_pool_path: 'data/data/split_pool/'
   Segmenting:
-    segmented_data_root: 'data/data/segmented_data/'
+    segmented_data_root: 'data/data/segmented_pool/'
     segment_length : 10

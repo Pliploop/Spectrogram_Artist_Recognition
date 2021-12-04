@@ -181,13 +181,15 @@ class SegmentPipeline:
     
     def split_song_chunks(self,filepath):
         total_chunks=[]
-        chunks = self.split_song_silence(filepath)
-        for chunk in chunks:
-            total_chunks +=  pydub.utils.make_chunks(chunk, self.segment_length)
-        for k in range( len(total_chunks)):
-            chunk = self.pad_audio(total_chunks[k])
-            if not os.path.exists('data/data/segmented_pool/{}_{}.mp3'.format(filepath.split('/')[-1].split('.')[0],k)):
-                chunk.export('data/data/segmented_pool/{}_{}.mp3'.format(filepath.split('/')[-1].split('.')[0],k), format='mp3')
+        if not os.path.exists('data/data/segmented_pool/{}_{}.mp3'.format(filepath.split('/')[-1].split('.')[0],0)):
+            chunks = self.split_song_silence(filepath)
+            
+            for chunk in chunks:
+                total_chunks +=  pydub.utils.make_chunks(chunk, self.segment_length)
+            for k in range( len(total_chunks)):
+                chunk = self.pad_audio(total_chunks[k])
+                if not os.path.exists('data/data/segmented_pool/{}_{}.mp3'.format(filepath.split('/')[-1].split('.')[0],k)):
+                    chunk.export('data/data/segmented_pool/{}_{}.mp3'.format(filepath.split('/')[-1].split('.')[0],k), format='mp3')
             
     
     def pad_audio(self,audio):
@@ -205,6 +207,19 @@ class SegmentPipeline:
             t.set_description(song_name)
             t.refresh()
             self.split_song_chunks(self.split_pool+os.listdir(self.split_pool)[k])
+
+    def build_segmented_df(self):
+        df = pd.DataFrame(columns=['new_uuid','old_uuid','artist'])
+        t = trange(len(os.listdir(self.segmented_pool)))
+        for k in t:
+            filename = os.listdir(self.segmented_pool)[k]
+            uuid = filename.split('/')[-1].split('.')[0]
+            unsplit_uuid = filename.split('/')[-1].split('.')[0].split('_')[0]
+            artist = self.database[self.database.uuid==unsplit_uuid].iloc[0].artist
+            df = df.append(pd.DataFrame([[uuid,unsplit_uuid,artist]], columns=df.columns))
+        df.to_csv("data/data/segmented_df.csv",index=False)
+            
+
 
 
     
